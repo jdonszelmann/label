@@ -8,53 +8,26 @@ name: Publish
 
 jobs:
 
-  lints:
-    name: Lints
+  publish:
+    name: Run cargo publish
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
 
-      - name: Install nightly toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          override: true
-          components: rustfmt, clippy
-
-      - name: Run cargo fmt
+      - name: Bump cargo version
         uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: |
+          cargo install cargo-bump
+          cargo bump patch
 
-      - name: Run cargo clippy
+      - name: Publish to crates.io
         uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D warnings
-
-  publish:
-    - name: Run cargo publish
-      runs-on: ubuntu-latest
-      steps:
-        - name: Checkout sources
-          uses: actions/checkout@v2
-
-        - name: Bump cargo version
-          uses: actions-rs/cargo@v1
-          run: |
-            cargo install cargo-bump
-            cargo bump patch
-
-        - name: Publish to crates.io
-          uses: actions-rs/cargo@v1
-          run: |
-            cargo login $CARGO_DEPLOY_TOKEN
-            cd label-macros
-            cargo +nightly publish
-            cd ..
-            cd label
-            sleep 15
-            cargo +nightly publish
+        run: |
+          cargo login $CARGO_DEPLOY_TOKEN
+          cd label-macros
+          cargo +nightly publish
+          cd ..
+          cd label
+          sleep 15
+          cargo +nightly publish
