@@ -9,9 +9,9 @@
 
 extern crate proc_macro;
 
-use proc_macro::{TokenStream, Span};
-use quote::{quote, format_ident};
 use lazy_static::lazy_static;
+use proc_macro::{Span, TokenStream};
+use quote::{format_ident, quote};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use syn::parse::{Parse, ParseStream, Result};
 use syn::spanned::Spanned;
@@ -20,42 +20,73 @@ lazy_static! {
     static ref ANNOTATIONID: AtomicUsize = AtomicUsize::new(0);
 }
 
-
-struct ParsableAttribute{
-    pub attributes: Vec<syn::Attribute>
+struct ParsableAttribute {
+    pub attributes: Vec<syn::Attribute>,
 }
 
 impl Parse for ParsableAttribute {
     fn parse(input: ParseStream) -> Result<Self> {
-        Ok(ParsableAttribute { attributes: input.call(syn::Attribute::parse_outer)? })
+        Ok(ParsableAttribute {
+            attributes: input.call(syn::Attribute::parse_outer)?,
+        })
     }
 }
 
 fn simplify_path(path: syn::Path) -> syn::Path {
     let mut res = match path {
-        syn::Path { leading_colon: leading_colon@ Some(_), segments } => syn::Path { leading_colon, segments },
-        syn::Path { leading_colon: None, mut segments } => match &segments[0] {
-            syn::PathSegment { ident, arguments: _ } if ident.to_string() == "crate" => syn::Path { leading_colon: None, segments },
-            syn::PathSegment { ident, arguments: _ } if ident.to_string() == "self" => syn::Path { leading_colon: None, segments },
-            syn::PathSegment { ident, arguments: _ } => {
+        syn::Path {
+            leading_colon: leading_colon @ Some(_),
+            segments,
+        } => syn::Path {
+            leading_colon,
+            segments,
+        },
+        syn::Path {
+            leading_colon: None,
+            mut segments,
+        } => match &segments[0] {
+            syn::PathSegment {
+                ident,
+                arguments: _,
+            } if &*ident.to_string() == "crate" => syn::Path {
+                leading_colon: None,
+                segments,
+            },
+            syn::PathSegment {
+                ident,
+                arguments: _,
+            } if &*ident.to_string() == "self" => syn::Path {
+                leading_colon: None,
+                segments,
+            },
+            syn::PathSegment {
+                ident,
+                arguments: _,
+            } => {
                 let span = ident.span();
-                segments.insert(0, syn::PathSegment {
-                    ident: syn::Ident::new("super", span),
-                    arguments: syn::PathArguments::None
-                });
-                syn::Path { leading_colon: None, segments }
+                segments.insert(
+                    0,
+                    syn::PathSegment {
+                        ident: syn::Ident::new("super", span),
+                        arguments: syn::PathArguments::None,
+                    },
+                );
+                syn::Path {
+                    leading_colon: None,
+                    segments,
+                }
             }
-        }
+        },
     };
 
     // replace ::annotate with ::add in the path.
     // It would be cleaner to remove ::annotate entirely, but couldn't find
     // a way to do that. .pop() retains the ::.
-    res.segments.last_mut().map(|i| {
+    if let Some(i) = res.segments.last_mut() {
         assert_eq!(i.ident.to_string(), "label");
         let new_ident = syn::Ident::new("add", i.span());
         i.ident = new_ident;
-    });
+    }
 
     res
 }
@@ -73,8 +104,8 @@ pub fn __label(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // any other attribute present
     let mut other_attrs = Vec::new();
     for i in func.attrs {
-        if let Some(ref lst) =  i.path.segments.last() {
-            if lst.ident.to_string() == "label" {
+        if let Some(ref lst) = i.path.segments.last() {
+            if &*lst.ident.to_string() == "label" {
                 other_annotations.push(simplify_path(i.path));
                 continue;
             }
@@ -94,20 +125,22 @@ pub fn __label(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let spans = {
         let mut current = Span::call_site();
         let mut possible = vec![current];
-        loop {
-            if let Some(new) = current.parent() {
-                current = new;
-                possible.push(new);
-            } else {
-                break;
-            }
+
+        while let Some(new) = current.parent() {
+            current = new;
+            possible.push(new);
         }
+
         possible
     };
 
-
     let mut res = None;
-    for span in spans.iter().rev().map(|i| i.source_text()).filter_map(|i| i) {
+    for span in spans
+        .iter()
+        .rev()
+        .map(|i| i.source_text())
+        .filter_map(|i| i)
+    {
         if let Ok(i) = syn::parse_str::<ParsableAttribute>(&span) {
             res = Some(i);
             break;
@@ -148,7 +181,6 @@ pub fn __label(_attr: TokenStream, item: TokenStream) -> TokenStream {
     result.into()
 }
 
-
 struct Signature {
     name: syn::Ident,
     params: syn::punctuated::Punctuated<syn::BareFnArg, syn::Token![,]>,
@@ -162,7 +194,6 @@ impl Parse for Signature {
 
         let name = input.parse()?;
 
-
         let content;
         syn::parenthesized!(
            content in input
@@ -174,10 +205,13 @@ impl Parse for Signature {
 
         input.parse::<syn::Token![;]>()?;
 
-        Ok(Signature { name, params, returntype })
+        Ok(Signature {
+            name,
+            params,
+            returntype,
+        })
     }
 }
-
 
 #[proc_macro]
 /// Creates a new label.
@@ -200,9 +234,10 @@ impl Parse for Signature {
 ///
 pub fn create_label(signature: TokenStream) -> TokenStream {
     let Signature {
-        name, params, returntype
+        name,
+        params,
+        returntype,
     } = syn::parse_macro_input!(signature);
-
 
     let signature = quote! {
         &'static (dyn Fn( #params ) #returntype + 'static)

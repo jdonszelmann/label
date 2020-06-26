@@ -1,0 +1,56 @@
+on:
+  push:
+    # Sequence of patterns matched against refs/tags
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+name: Create Release
+
+jobs:
+  build:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@master
+
+      - name: Install latest nightly
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+
+      - name: Set env
+        run: |
+          echo ::set-env name=RELEASE_VERSION::${GITHUB_REF#refs/*/}
+          echo ::set-env name=BRANCH::${GITHUB_REF#refs/heads/}
+
+      - name: Publish
+        env:
+          CARGO_DEPLOY_TOKEN: ${{ secrets.CARGO_DEPLOY_TOKEN }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git pull origin master
+
+          echo $RELEASE_VERSION
+          export RELEASE_VERSION=$(echo $RELEASE_VERSION | sed 's/^v//')
+
+          awk 'NR==1,/claudio/{sub(/version += +".*"/, "version=RELEASE_VERSION")} 1' label/Cargo.toml | sed "s/RELEASE_VERSION/\"$RELEASE_VERSION\"/g" > label/Cargo1.toml
+          mv label/Cargo1.toml label/Cargo.toml
+
+          awk 'NR==1,/claudio/{sub(/version += +".*"/, "version=RELEASE_VERSION")} 1' label-macros/Cargo.toml | sed "s/RELEASE_VERSION/\"$RELEASE_VERSION\"/g" > label-macros/Cargo1.toml
+          mv label-macros/Cargo1.toml label-macros/Cargo.toml
+
+          sed -i "s/path *= *\"..\/label-macros\", *version *= *\".*\"/path=\"..\/label-macros\", version=\"$RELEASE_VERSION\"/" label/Cargo.toml
+
+          git add label/Cargo.toml label-macros/Cargo.toml
+          git commit -m "Updated to version $RELEASE_VERSION"
+
+          cargo login "$CARGO_DEPLOY_TOKEN"
+          cd label-macros && cargo +nightly publish
+          sleep 15
+          cd label && cargo +nightly publish
+
+          git push origin master

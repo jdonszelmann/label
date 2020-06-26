@@ -1,3 +1,4 @@
+#![allow(clippy::needless_doctest_main)]
 //! # Label
 //!
 //! `label` is a library that can be used to create custom attributes for functions, through which you can list them and perform actions on them.
@@ -24,8 +25,6 @@
 //!
 //! ```
 
-
+pub use ctor::ctor;
 pub use label_macros::__label;
 pub use label_macros::create_label;
-pub use ctor::ctor;
-
