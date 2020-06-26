@@ -8,6 +8,7 @@ description = "Label functions and iterate over them."
 documentation = "https://docs.rs/label"
 repository = "https://github.com/jonay2000/label"
 homepage = "https://github.com/jonay2000/label"
+readme = "../README.md"
 
 
 [lib]
