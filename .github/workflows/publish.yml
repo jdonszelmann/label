@@ -32,7 +32,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git pull origin master
+          git checkout -b "$BRANCH-update"
 
           echo $RELEASE_VERSION
           export RELEASE_VERSION=$(echo $RELEASE_VERSION | sed 's/^v//')
@@ -53,4 +53,4 @@ jobs:
           sleep 15
           cd label && cargo +nightly publish
 
-          git push origin master
+          git push origin "$BRANCH-update"

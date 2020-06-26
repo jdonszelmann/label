@@ -1,6 +1,10 @@
 
 # Label
 
+![](https://img.shields.io/crates/v/label)
+![](https://docs.rs/label/badge.svg)
+![](https://github.com/jonay2000/label/workflows/.github/workflows/ci.yml/badge.svg)
+
 `label` is a library that can be used to create custom attributes for functions, through which you can list them and perform actions on them.
 
 # Example
