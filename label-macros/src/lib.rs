@@ -1,11 +1,11 @@
 // Let's hope this is stabilized soon. There is some activity on it. https://github.com/rust-lang/rust/issues/54725
 #![feature(proc_macro_span)]
-///! # Label
-///!
-///! `label` is a library that can be used to create custom attributes for functions, through which you can list them and perform actions on them.
-///!
-///! For more documentation, refer to (https://docs.rs/label)[https://docs.rs/label]
-///!
+//! # Label
+//!
+//! `label` is a library that can be used to create custom attributes for functions, through which you can list them and perform actions on them.
+//!
+//! For more documentation, refer to (https://docs.rs/label)[https://docs.rs/label]
+//!
 
 extern crate proc_macro;
 
@@ -190,12 +190,12 @@ impl Parse for Signature {
 /// ```
 /// #[test::label]
 /// fn my_function() {
-///
+///     // contents
 /// }
 ///
 /// ```
 ///
-/// Test is the name of your label (this has to be a full path to it. Labels can be imported).
+/// `test` is the name of your label (this has to be a full path to it. Labels can be imported).
 /// The annotation has to end with `::label`, or otherwise it will not compile.
 ///
 pub fn create_label(signature: TokenStream) -> TokenStream {

@@ -7,9 +7,9 @@
 
 ```rust
 
-create_annotatation!(fn test() -> (););
+create_label!(fn test() -> (););
 
-#[test::annotate]
+#[test::label]
 fn my_fn() {
     println!("Test!");
 }
@@ -23,6 +23,10 @@ fn main() {
 }
 
 ```
+
+## Contributing
+
+Any contributions are welcome. Just make a pull request or issue and I will try to respond as soon as possible.
 
 ### License
 
