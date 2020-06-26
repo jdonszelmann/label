@@ -1,0 +1,3 @@
+[workspace]
+default-members = ["annotations"]
+members = ["annotations", "proc"]
