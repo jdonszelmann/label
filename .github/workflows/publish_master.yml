@@ -21,15 +21,15 @@ jobs:
           toolchain: nightly
           override: true
 
-      - name: Bump cargo version
+      - name: Install cargo bump
         run: |
           cargo install cargo-bump
-          cd label-macros
-          cargo bump minor
-          cd ..
-          cd label
-          cargo bump minor
-          version=$(grep "version.*=" label/Cargo.toml | head -n 1 | cut -d '=' -f 2) && sed -i "s/path *= *\"..\/label-macros\", *version *= *\".*\"/path=\"..\/label-macros\", version=$version/" label/Cargo.toml
+
+      - name: Bump cargo version
+        run: |
+          cd label-macros && cargo bump minor
+          cd label && cargo bump minor
+          cd label && version=$(grep "version.*=" label/Cargo.toml | head -n 1 | cut -d '=' -f 2) && sed -i "s/path *= *\"..\/label-macros\", *version *= *\".*\"/path=\"..\/label-macros\", version=$version/" label/Cargo.toml
 
       - name: Publish to crates.io
         run: |
