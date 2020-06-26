@@ -75,7 +75,7 @@ pub fn __annotate(_attr: TokenStream, item: TokenStream) -> TokenStream {
         other_attrs.push(i);
     }
 
-    // remove all annotations from the function's attributes
+    // remove all label from the function's attributes
     // but keep other attributes
     func.attrs = other_attrs;
 
@@ -130,7 +130,7 @@ pub fn __annotate(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
             #[ctor]
             fn create () {
-                // register for all annotations it should be registered for
+                // register for all label it should be registered for
                 #callpath::__add_annotation(&#function_name);
 
                 #(#other_annotations ::__add_annotation(&#function_name);)*

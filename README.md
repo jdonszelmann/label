@@ -1,5 +1,5 @@
 
-# Label functions and iterate over them
+# Label
 
 `label` is a library that can be used to create custom attributes for functions, through which you can list them and perform actions on them.
 
@@ -15,7 +15,7 @@ fn my_fn() {
 }
 
 fn main() {
-    println!("calling all 'test' annotations");
+    println!("calling all 'test' label");
     // using iter you can go through all functions with this annotation.
     for i in test::iter() {
         i();
