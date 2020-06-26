@@ -1,13 +1,13 @@
-use annotations::{create_annotatation};
+use label::create_label;
 
 // TODO: allow for creating multiple label in one create_annotation! macro.
 // Create two label.
-create_annotatation!(fn test() -> (););
-create_annotatation!(fn test2(usize) -> usize;);
+create_label!(fn test() -> (););
+create_label!(fn test2(usize) -> usize;);
 
 pub mod  child {
     // annotate a function by giving the path to the annotation and postfixing ::annotate.
-    #[super::test::annotate]
+    #[super::test::label]
     fn my_fn() {
         println!("Test2!");
     }
@@ -15,33 +15,33 @@ pub mod  child {
 
 pub mod folder {
     // multiple label living in any submodule or supermodule are possible.
-    #[crate::test::annotate]
-    #[child::test1::annotate]
+    #[crate::test::label]
+    #[child::test1::label]
     fn my_fn() {
         println!("Test4!");
     }
 
     pub mod  child {
-        use annotations::create_annotatation;
+        use label::create_label;
 
-        #[super::super::test::annotate]
+        #[super::super::test::label]
         fn my_fn() {
             println!("Test3!");
         }
 
-        create_annotatation!(
+        create_label!(
             fn test1() -> ();
         );
     }
 }
 
-#[test::annotate]
-#[folder::child::test1::annotate]
+#[test::label]
+#[folder::child::test1::label]
 fn my_fn() {
     println!("Test1!");
 }
 
-#[test2::annotate]
+#[test2::label]
 // label are typed, so functions annotated with test2 must take a usize and return one.
 fn my_usize_fn(x: usize) -> usize {
     println!("my usize: {}", x);

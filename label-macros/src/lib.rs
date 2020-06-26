@@ -1,5 +1,11 @@
 // Let's hope this is stabilized soon. There is some activity on it. https://github.com/rust-lang/rust/issues/54725
 #![feature(proc_macro_span)]
+///! # Label
+///!
+///! `label` is a library that can be used to create custom attributes for functions, through which you can list them and perform actions on them.
+///!
+///! For more documentation, refer to (https://docs.rs/label)[https://docs.rs/label]
+///!
 
 extern crate proc_macro;
 
@@ -46,7 +52,7 @@ fn simplify_path(path: syn::Path) -> syn::Path {
     // It would be cleaner to remove ::annotate entirely, but couldn't find
     // a way to do that. .pop() retains the ::.
     res.segments.last_mut().map(|i| {
-        assert_eq!(i.ident.to_string(), "annotate");
+        assert_eq!(i.ident.to_string(), "label");
         let new_ident = syn::Ident::new("add", i.span());
         i.ident = new_ident;
     });
@@ -55,8 +61,9 @@ fn simplify_path(path: syn::Path) -> syn::Path {
 }
 
 #[proc_macro_attribute]
+#[doc(hidden)]
 /// DO NOT USE DIRECTLY! USE THROUGH CREATE_ANNOTATION
-pub fn __annotate(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn __label(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut func = syn::parse_macro_input!(item as syn::ItemFn);
 
     let function_name = &func.sig.ident;
@@ -67,7 +74,7 @@ pub fn __annotate(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut other_attrs = Vec::new();
     for i in func.attrs {
         if let Some(ref lst) =  i.path.segments.last() {
-            if lst.ident.to_string() == "annotate" {
+            if lst.ident.to_string() == "label" {
                 other_annotations.push(simplify_path(i.path));
                 continue;
             }
@@ -125,15 +132,15 @@ pub fn __annotate(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
         #[allow(non_snake_case)]
         mod #varname {
-            use annotations::ctor;
+            use label::ctor;
             use super::#function_name;
 
             #[ctor]
             fn create () {
                 // register for all label it should be registered for
-                #callpath::__add_annotation(&#function_name);
+                #callpath::__add_label(&#function_name);
 
-                #(#other_annotations ::__add_annotation(&#function_name);)*
+                #(#other_annotations ::__add_label(&#function_name);)*
             }
         }
     };
@@ -173,7 +180,25 @@ impl Parse for Signature {
 
 
 #[proc_macro]
-pub fn create_annotatation(signature: TokenStream) -> TokenStream {
+/// Creates a new label.
+/// ```
+/// create_label!(fn test() -> (););
+/// ```
+///
+/// To use a label, add an attribute to a function in the following style:
+///
+/// ```
+/// #[test::label]
+/// fn my_function() {
+///
+/// }
+///
+/// ```
+///
+/// Test is the name of your label (this has to be a full path to it. Labels can be imported).
+/// The annotation has to end with `::label`, or otherwise it will not compile.
+///
+pub fn create_label(signature: TokenStream) -> TokenStream {
     let Signature {
         name, params, returntype
     } = syn::parse_macro_input!(signature);
@@ -184,11 +209,12 @@ pub fn create_annotatation(signature: TokenStream) -> TokenStream {
     };
 
     let result = quote! {
+        #[allow(non_snake_case)]
         pub mod #name {
             static mut FUNCTIONS: Option<Vec<#signature>> = None;
 
             pub use core::iter;
-            pub use annotations::__annotate as annotate;
+            pub use label::__label as label;
 
             pub fn iter() -> impl Iterator<Item = #signature> {
                 // Safety: after FUNCTIONS is populated (before main is called),
@@ -203,7 +229,7 @@ pub fn create_annotatation(signature: TokenStream) -> TokenStream {
                 use super::*;
                 // WARNING: DO NOT CALL. THIS HAS TO BE PUBLIC FOR OTHER
                 // PARTS OF THE LIBRARY TO WORK BUT SHOULD NEVER BE USED.
-                pub fn __add_annotation(func: #signature) {
+                pub fn __add_label(func: #signature) {
                     unsafe {
                         if let Some(f) = &mut FUNCTIONS {
                             f.push(func)
