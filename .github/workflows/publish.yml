@@ -35,7 +35,7 @@ jobs:
           git checkout -b "$BRANCH-update"
 
           echo $RELEASE_VERSION
-          export RELEASE_VERSION=$(echo $RELEASE_VERSION | cut -b 1 --complement)
+          export RELEASE_VERSION=$(echo $RELEASE_VERSION | sed 's/^v//')
 
           awk 'NR==1,/claudio/{sub(/version += +".*"/, "version=RELEASE_VERSION")} 1' label/Cargo.toml | sed "s/RELEASE_VERSION/\"$RELEASE_VERSION\"/g" > label/Cargo1.toml
           mv label/Cargo1.toml label/Cargo.toml
@@ -44,7 +44,6 @@ jobs:
           mv label-macros/Cargo1.toml label-macros/Cargo.toml
 
           sed -i "s/path *= *\"..\/label-macros\", *version *= *\".*\"/path=\"..\/label-macros\", version=\"$RELEASE_VERSION\"/" label/Cargo.toml
-          cat label/Cargo.toml
 
           git add label/Cargo.toml label-macros/Cargo.toml
           git commit -m "Updated to version $RELEASE_VERSION"
