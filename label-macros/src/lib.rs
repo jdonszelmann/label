@@ -4,7 +4,7 @@
 //!
 //! `label` is a library that can be used to create custom attributes for functions, through which you can list them and perform actions on them.
 //!
-//! For more documentation, refer to (https://docs.rs/label)[https://docs.rs/label]
+//! For more documentation, refer to [https://docs.rs/label](https://docs.rs/label).
 //!
 
 extern crate proc_macro;
