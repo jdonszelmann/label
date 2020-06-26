@@ -2,10 +2,12 @@ use label::create_label;
 
 // TODO: allow for creating multiple label in one create_annotation! macro.
 // Create two label.
-create_label!(fn test() -> (););
+create_label!(
+    fn test() -> ();
+);
 create_label!(fn test2(usize) -> usize;);
 
-pub mod  child {
+pub mod child {
     // annotate a function by giving the path to the annotation and postfixing ::annotate.
     #[super::test::label]
     fn my_fn() {
@@ -21,7 +23,7 @@ pub mod folder {
         println!("Test4!");
     }
 
-    pub mod  child {
+    pub mod child {
         use label::create_label;
 
         #[super::super::test::label]
@@ -65,4 +67,3 @@ fn main() {
         println!("{}", i(3));
     }
 }
-
