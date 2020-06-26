@@ -3,6 +3,11 @@ name = "label-macros"
 version = "0.1.0"
 authors = ["jonay2000 <jonabent@gmail.com>"]
 edition = "2018"
+license-file = "../LICENSE"
+description = "Label functions and iterate over them."
+documentation = "https://docs.rs/label"
+repository = "https://github.com/jonay2000/label"
+homepage = "https://github.com/jonay2000/label"
 
 
 [lib]
