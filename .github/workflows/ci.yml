@@ -67,3 +67,17 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
+
+  publish:
+    - name: Run cargo clippy
+      uses: actions-rs/cargo@v1
+      run: |
+        cargo install cargo-bump
+        cargo bump patch
+        cargo login $CARGO_DEPLOY_TOKEN
+        cd label-macros
+        cargo +nightly publish
+        cd ..
+        cd label
+        sleep 15
+        cargo +nightly publish
