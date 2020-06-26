@@ -9,25 +9,29 @@ name: Publish
 jobs:
 
   publish:
-      name: Run cargo publish
-      runs-on: ubuntu-latest
-      steps:
-        - name: Checkout sources
-          uses: actions/checkout@v2
+    name: Run cargo publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
 
-        - name: Bump cargo version
-          uses: actions-rs/cargo@v1
-          run: |
-            cargo install cargo-bump
-            cargo bump minor
+      - name: Install latest nightly
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
 
-        - name: Publish to crates.io
-          uses: actions-rs/cargo@v1
-          run: |
-            cargo login $CARGO_DEPLOY_TOKEN
-            cd label-macros
-            cargo +nightly publish
-            cd ..
-            cd label
-            sleep 15
-            cargo +nightly publish
+      - name: Bump cargo version
+        run: |
+          cargo install cargo-bump
+          cargo bump minor
+
+      - name: Publish to crates.io
+        run: |
+          cargo login $CARGO_DEPLOY_TOKEN
+          cd label-macros
+          cargo +nightly publish
+          cd ..
+          cd label
+          sleep 15
+          cargo +nightly publish
