@@ -24,7 +24,11 @@ jobs:
       - name: Bump cargo version
         run: |
           cargo install cargo-bump
-          cargo bump patch
+          cd label-macros
+          cargo bump minor
+          cd ..
+          cd label
+          cargo bump minor
 
       - name: Publish to crates.io
         run: |
