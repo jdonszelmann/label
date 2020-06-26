@@ -15,14 +15,18 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v2
 
+      - name: Install latest nightly
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+
       - name: Bump cargo version
-        uses: actions-rs/cargo@v1
         run: |
           cargo install cargo-bump
           cargo bump patch
 
       - name: Publish to crates.io
-        uses: actions-rs/cargo@v1
         run: |
           cargo login $CARGO_DEPLOY_TOKEN
           cd label-macros
