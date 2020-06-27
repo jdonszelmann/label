@@ -160,6 +160,7 @@ pub fn __label(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let varname = format_ident!("__ANNOTATION_{}_{}", function_name, annotation_id);
 
     let callpath = simplify_path(path);
+    let function_name_str = format!("{}", function_name);
 
     let result = quote! {
         #func
@@ -172,9 +173,9 @@ pub fn __label(_attr: TokenStream, item: TokenStream) -> TokenStream {
             #[ctor]
             fn create () {
                 // register for all label it should be registered for
-                #callpath::__add_label(&#function_name);
+                #callpath::__add_label(#function_name_str, &#function_name);
 
-                #(#other_annotations ::__add_label(&#function_name);)*
+                #(#other_annotations ::__add_label(#function_name_str, &#function_name);)*
             }
         }
     };
@@ -272,12 +273,20 @@ pub fn create_label(signatures: TokenStream) -> TokenStream {
             quote! {
                 #[allow(non_snake_case)]
                 pub mod #name {
-                    static mut FUNCTIONS: Option<Vec<#signature>> = None;
-
-                    pub use core::iter;
+                    pub use std::collections::HashMap;
                     pub use label::__label as label;
 
+                    static mut FUNCTIONS: Option<Vec<(&'static str, #signature)>> = None;
+
                     pub fn iter() -> impl Iterator<Item = #signature> {
+                        // Safety: after FUNCTIONS is populated (before main is called),
+                        // FUNCTIONS remains unchanged for the entire rest of the program.
+                        unsafe{
+                            FUNCTIONS.iter().flat_map(|i| i.iter().map(|i| &i.1)).cloned()
+                        }
+                    }
+
+                    pub fn iter_named() -> impl Iterator<Item = (&'static str, #signature)> {
                         // Safety: after FUNCTIONS is populated (before main is called),
                         // FUNCTIONS remains unchanged for the entire rest of the program.
                         unsafe{
@@ -285,17 +294,16 @@ pub fn create_label(signatures: TokenStream) -> TokenStream {
                         }
                     }
 
-
                     pub mod add {
                         use super::*;
                         // WARNING: DO NOT CALL. THIS HAS TO BE PUBLIC FOR OTHER
                         // PARTS OF THE LIBRARY TO WORK BUT SHOULD NEVER BE USED.
-                        pub fn __add_label(func: #signature) {
+                        pub fn __add_label(name: &'static str, func: #signature) {
                             unsafe {
                                 if let Some(f) = &mut FUNCTIONS {
-                                    f.push(func)
+                                    f.push((name, func));
                                 } else {
-                                    FUNCTIONS = Some(vec![func])
+                                    FUNCTIONS = Some(vec![(name, func)])
                                 }
                             }
                         }

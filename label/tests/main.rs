@@ -20,7 +20,7 @@ pub mod folder {
     // multiple label living in any submodule or supermodule are possible.
     #[crate::test::label]
     #[child::test1::label]
-    fn my_fn() -> &'static str {
+    fn fn_four() -> &'static str {
         "Test4!"
     }
 
@@ -38,7 +38,7 @@ pub mod folder {
 
 #[test::label]
 #[folder::child::test1::label]
-fn my_fn() -> &'static str {
+fn another_fn() -> &'static str {
     "Test1!"
 }
 
@@ -80,3 +80,20 @@ fn test_add_one() {
         assert_eq!(i(3), 4);
     }
 }
+
+
+
+#[test]
+fn test_simple_named() {
+    // using iter you can go through all functions with this annotation.
+    let mut ret = HashSet::new();
+    for (name, i) in test::iter_named() {
+        ret.insert((name, i()));
+    }
+
+    assert!(ret.contains(&("another_fn", "Test1!")));
+    assert!(ret.contains(&("my_fn", "Test2!")));
+    assert!(ret.contains(&("my_fn", "Test3!")));
+    assert!(ret.contains(&("fn_four", "Test4!")));
+}
+
