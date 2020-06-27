@@ -6,6 +6,7 @@
 ![](https://github.com/jonay2000/label/workflows/label/badge.svg)
 
 `label` is a library that can be used to create custom attributes for functions, through which you can list them and perform actions on them.
+Label uses no global state during the compilation process, to avoid incremental compilation breaking it.
 
 # Example
 

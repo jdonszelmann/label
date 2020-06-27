@@ -2,13 +2,14 @@
 //! # Label
 //!
 //! `label` is a library that can be used to create custom attributes for functions, through which you can list them and perform actions on them.
+//! Label uses no global state during the compilation process, to avoid incremental compilation breaking it.
 //!
 //! # Example
 //!
 //! ```
 //! use label::create_label;
 //!
-//! create_label!(fn test() -> (););
+//! create_label!(fn test() -> ());
 //!
 //! #[test::label]
 //! fn my_fn()  {
