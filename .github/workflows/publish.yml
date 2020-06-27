@@ -52,6 +52,6 @@ jobs:
           cargo login "$CARGO_DEPLOY_TOKEN"
           cd label-macros && cargo +nightly publish
           sleep 15
-          cd label && cargo +nightly publish
+          cd ../label && cargo +nightly publish
 
           git push origin "$BRANCH-update"
