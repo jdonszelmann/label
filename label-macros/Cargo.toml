@@ -19,4 +19,4 @@ proc-macro = true
 [dependencies]
 syn = {version="1.0.33", features=["full"]}
 quote = "1.0.7"
-lazy_static = "1.4.0"
+uuid = {version="0.8.1", features=["v4"]}

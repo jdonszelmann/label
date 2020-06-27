@@ -9,17 +9,12 @@
 
 extern crate proc_macro;
 
-use lazy_static::lazy_static;
 use proc_macro::{Span, TokenStream};
 use quote::{format_ident, quote};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use syn::parse::{Parse, ParseStream, Result};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-
-lazy_static! {
-    static ref ANNOTATIONID: AtomicUsize = AtomicUsize::new(0);
-}
+use uuid::Uuid;
 
 struct ParsableAttribute {
     pub attributes: Vec<syn::Attribute>,
@@ -154,9 +149,7 @@ pub fn __label(_attr: TokenStream, item: TokenStream) -> TokenStream {
         unreachable!()
     };
 
-    let annotation_id = ANNOTATIONID.load(Ordering::SeqCst);
-    ANNOTATIONID.store(annotation_id + 1, Ordering::SeqCst);
-
+    let annotation_id = Uuid::new_v4().as_u128();
     let varname = format_ident!("__ANNOTATION_{}_{}", function_name, annotation_id);
 
     let callpath = simplify_path(path);
