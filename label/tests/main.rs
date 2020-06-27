@@ -1,16 +1,18 @@
 use label::create_label;
+use std::collections::HashSet;
 
-// Create two labels.
+// TODO: allow for creating multiple label in one create_annotation! macro.
+// Create two label.
 create_label!(
-    fn test() -> ();
+    fn test() -> &'static str;
     fn test2(usize) -> usize;
 );
 
 pub mod child {
     // annotate a function by giving the path to the annotation and postfixing ::annotate.
     #[super::test::label]
-    fn my_fn() {
-        println!("Test2!");
+    fn my_fn() -> &'static str {
+        "Test2!"
     }
 }
 
@@ -18,49 +20,63 @@ pub mod folder {
     // multiple label living in any submodule or supermodule are possible.
     #[crate::test::label]
     #[child::test1::label]
-    fn my_fn() {
-        println!("Test4!");
+    fn my_fn() -> &'static str {
+        "Test4!"
     }
 
     pub mod child {
         use label::create_label;
 
         #[super::super::test::label]
-        fn my_fn() {
-            println!("Test3!");
+        fn my_fn() -> &'static str {
+            "Test3!"
         }
 
-        create_label!(fn test1() -> ());
+        create_label!(fn test1() -> &'static str);
     }
 }
 
 #[test::label]
 #[folder::child::test1::label]
-fn my_fn() {
-    println!("Test1!");
+fn my_fn() -> &'static str {
+    "Test1!"
 }
 
 #[test2::label]
 // label are typed, so functions annotated with test2 must take a usize and return one.
 fn my_usize_fn(x: usize) -> usize {
-    println!("my usize: {}", x);
     x + 1
 }
 
-fn main() {
-    println!("calling all 'test' label");
+#[test]
+fn test_simple() {
     // using iter you can go through all functions with this annotation.
+    let mut ret = HashSet::new();
     for i in test::iter() {
-        i();
+        ret.insert(i());
     }
 
-    println!("calling all 'test1' label");
+    assert!(ret.contains("Test1!"));
+    assert!(ret.contains("Test2!"));
+    assert!(ret.contains("Test3!"));
+    assert!(ret.contains("Test4!"));
+}
+
+#[test]
+fn test_label_in_module() {
+    let mut ret = HashSet::new();
+
     for i in folder::child::test1::iter() {
-        i();
+        ret.insert(i());
     }
 
-    println!("calling all 'usize' label");
+    assert!(ret.contains("Test1!"));
+    assert!(ret.contains("Test4!"));
+}
+
+#[test]
+fn test_add_one() {
     for i in test2::iter() {
-        println!("{}", i(3));
+        assert_eq!(i(3), 4);
     }
 }

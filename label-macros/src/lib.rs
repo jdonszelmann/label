@@ -14,6 +14,7 @@ use proc_macro::{Span, TokenStream};
 use quote::{format_ident, quote};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use syn::parse::{Parse, ParseStream, Result};
+use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 
 lazy_static! {
@@ -181,6 +182,18 @@ pub fn __label(_attr: TokenStream, item: TokenStream) -> TokenStream {
     result.into()
 }
 
+struct Signatures {
+    signatures: Punctuated<Signature, syn::Token![;]>,
+}
+
+impl Parse for Signatures {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(Self {
+            signatures: input.parse_terminated::<_, syn::Token![;]>(Signature::parse)?,
+        })
+    }
+}
+
 struct Signature {
     name: syn::Ident,
     params: syn::punctuated::Punctuated<syn::BareFnArg, syn::Token![,]>,
@@ -203,8 +216,6 @@ impl Parse for Signature {
 
         let returntype = input.parse::<syn::ReturnType>()?;
 
-        input.parse::<syn::Token![;]>()?;
-
         Ok(Signature {
             name,
             params,
@@ -216,7 +227,7 @@ impl Parse for Signature {
 #[proc_macro]
 /// Creates a new label.
 /// ```
-/// create_label!(fn test() -> (););
+/// create_label!(fn test() -> ());
 /// ```
 ///
 /// To use a label, add an attribute to a function in the following style:
@@ -232,50 +243,70 @@ impl Parse for Signature {
 /// `test` is the name of your label (this has to be a full path to it. Labels can be imported).
 /// The annotation has to end with `::label`, or otherwise it will not compile.
 ///
-pub fn create_label(signature: TokenStream) -> TokenStream {
-    let Signature {
-        name,
-        params,
-        returntype,
-    } = syn::parse_macro_input!(signature);
+///
+/// It is possible to create multipe labels in one invocation of the `create_label` macro. The syntax for this is as follows:
+/// ```
+/// create_label!(
+///     fn test() -> ();
+///     fn test1(usize) -> (usize);
+///     fn test2(usize) -> (isize);
+/// );
+///
+/// ```
+/// It is not supported to have two labels in scope with the same name, just like two structs in the same scope with the same name won't work either.
+pub fn create_label(signatures: TokenStream) -> TokenStream {
+    let labels = syn::parse_macro_input!(signatures as Signatures)
+        .signatures
+        .iter()
+        .map(|signature| {
+            let Signature {
+                name,
+                params,
+                returntype,
+            } = signature;
 
-    let signature = quote! {
-        &'static (dyn Fn( #params ) #returntype + 'static)
-    };
+            let signature = quote! {
+                &'static (dyn Fn( #params ) #returntype + 'static)
+            };
 
-    let result = quote! {
-        #[allow(non_snake_case)]
-        pub mod #name {
-            static mut FUNCTIONS: Option<Vec<#signature>> = None;
+            quote! {
+                #[allow(non_snake_case)]
+                pub mod #name {
+                    static mut FUNCTIONS: Option<Vec<#signature>> = None;
 
-            pub use core::iter;
-            pub use label::__label as label;
+                    pub use core::iter;
+                    pub use label::__label as label;
 
-            pub fn iter() -> impl Iterator<Item = #signature> {
-                // Safety: after FUNCTIONS is populated (before main is called),
-                // FUNCTIONS remains unchanged for the entire rest of the program.
-                unsafe{
-                    FUNCTIONS.iter().flat_map(|i| i).cloned()
-                }
-            }
+                    pub fn iter() -> impl Iterator<Item = #signature> {
+                        // Safety: after FUNCTIONS is populated (before main is called),
+                        // FUNCTIONS remains unchanged for the entire rest of the program.
+                        unsafe{
+                            FUNCTIONS.iter().flat_map(|i| i).cloned()
+                        }
+                    }
 
 
-            pub mod add {
-                use super::*;
-                // WARNING: DO NOT CALL. THIS HAS TO BE PUBLIC FOR OTHER
-                // PARTS OF THE LIBRARY TO WORK BUT SHOULD NEVER BE USED.
-                pub fn __add_label(func: #signature) {
-                    unsafe {
-                        if let Some(f) = &mut FUNCTIONS {
-                            f.push(func)
-                        } else {
-                            FUNCTIONS = Some(vec![func])
+                    pub mod add {
+                        use super::*;
+                        // WARNING: DO NOT CALL. THIS HAS TO BE PUBLIC FOR OTHER
+                        // PARTS OF THE LIBRARY TO WORK BUT SHOULD NEVER BE USED.
+                        pub fn __add_label(func: #signature) {
+                            unsafe {
+                                if let Some(f) = &mut FUNCTIONS {
+                                    f.push(func)
+                                } else {
+                                    FUNCTIONS = Some(vec![func])
+                                }
+                            }
                         }
                     }
                 }
             }
-        }
-    };
+        })
+        .collect::<Vec<_>>();
 
+    let result = quote! {
+        #(#labels)*
+    };
     result.into()
 }

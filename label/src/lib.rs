@@ -23,7 +23,14 @@
 //!     }
 //! }
 //!
+//!
 //! ```
+//!
+//! # Guarantees
+//!
+//! It is not supported to rely on the on the ordering of test::iter() in any situation.
+//! However, it is guaranteed that once the order is set at the start of the application, it stays that way until the application is stopped.
+//!c
 
 pub use ctor::ctor;
 pub use label_macros::__label;
