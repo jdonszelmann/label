@@ -4,7 +4,9 @@ use std::collections::HashSet;
 // TODO: allow for creating multiple label in one create_annotation! macro.
 // Create two label.
 create_label!(
-    fn test() -> &'static str;
+    // test that comments work here
+    // V test that pub works (does nothing)
+    pub(self) fn test() -> &'static str;
     fn test2(usize) -> usize;
 );
 
@@ -63,6 +65,12 @@ fn test_simple() {
 }
 
 #[test]
+fn test_call_normal() {
+    // Test to see if calling an annotated function normally still works
+    assert_eq!(my_usize_fn(2), 3);
+}
+
+#[test]
 fn test_label_in_module() {
     let mut ret = HashSet::new();
 
@@ -93,4 +101,25 @@ fn test_simple_named() {
     assert!(ret.contains(&("my_fn", "Test2!")));
     assert!(ret.contains(&("my_fn", "Test3!")));
     assert!(ret.contains(&("fn_four", "Test4!")));
+}
+
+pub struct Test<'a, 'b> {
+    a: &'a usize,
+    _b: &'b usize,
+}
+
+create_label!(
+    fn with_lifetime<'a, 'b>(Test<'a, 'b>)-> &'a usize
+);
+
+#[with_lifetime::label]
+fn fn_test_with_lifetimes<'a, 'b>(val: Test<'a, 'b>) -> &'a usize {
+    val.a
+}
+
+#[test]
+fn test_with_generics() {
+    for i in with_lifetime::iter() {
+        assert_eq!(i(Test { a: &10, _b: &15 }), &10);
+    }
 }
