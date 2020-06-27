@@ -81,8 +81,6 @@ fn test_add_one() {
     }
 }
 
-
-
 #[test]
 fn test_simple_named() {
     // using iter you can go through all functions with this annotation.
@@ -96,4 +94,3 @@ fn test_simple_named() {
     assert!(ret.contains(&("my_fn", "Test3!")));
     assert!(ret.contains(&("fn_four", "Test4!")));
 }
-

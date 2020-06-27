@@ -254,7 +254,34 @@ impl Parse for Signature {
 /// );
 ///
 /// ```
+///
 /// It is not supported to have two labels in scope with the same name, just like two structs in the same scope with the same name won't work either.
+///
+///
+/// After a label is created, it is possible to iterate over all functions annotated with this label, using the iter function:
+///
+/// ```
+/// for func in test::iter() {
+///     // do something with the function
+///     func();
+/// }
+///
+/// ```
+///
+/// The order in which iteration occurs is *not* defined.
+///
+/// Alternatively, you can iterate over functions and their names using the `iter_named()` function:
+///
+/// ```
+/// for (name, func) in test::iter_named() {
+///     println!("name: {}", name);
+///
+///     // do something with the function
+///     func();
+/// }
+///
+/// ```
+///
 pub fn create_label(signatures: TokenStream) -> TokenStream {
     let labels = syn::parse_macro_input!(signatures as Signatures)
         .signatures
