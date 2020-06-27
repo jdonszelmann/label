@@ -14,8 +14,8 @@ use proc_macro::{Span, TokenStream};
 use quote::{format_ident, quote};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use syn::parse::{Parse, ParseStream, Result};
-use syn::spanned::Spanned;
 use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
 
 lazy_static! {
     static ref ANNOTATIONID: AtomicUsize = AtomicUsize::new(0);
@@ -183,13 +183,13 @@ pub fn __label(_attr: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 struct Signatures {
-    signatures: Punctuated<Signature, syn::Token![;]>
+    signatures: Punctuated<Signature, syn::Token![;]>,
 }
 
 impl Parse for Signatures {
     fn parse(input: ParseStream) -> Result<Self> {
-        Ok(Self{
-            signatures: input.parse_terminated::<_, syn::Token![;]>(Signature::parse)?
+        Ok(Self {
+            signatures: input.parse_terminated::<_, syn::Token![;]>(Signature::parse)?,
         })
     }
 }
@@ -255,7 +255,9 @@ impl Parse for Signature {
 /// ```
 /// It is not supported to have two labels in scope with the same name, just like two structs in the same scope with the same name won't work either.
 pub fn create_label(signatures: TokenStream) -> TokenStream {
-    let labels = syn::parse_macro_input!(signatures as Signatures).signatures.iter()
+    let labels = syn::parse_macro_input!(signatures as Signatures)
+        .signatures
+        .iter()
         .map(|signature| {
             let Signature {
                 name,

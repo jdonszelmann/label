@@ -38,7 +38,7 @@ pub mod folder {
 
 #[test::label]
 #[folder::child::test1::label]
-fn my_fn() -> &'static str{
+fn my_fn() -> &'static str {
     "Test1!"
 }
 
@@ -61,7 +61,6 @@ fn test_simple() {
     assert!(ret.contains("Test3!"));
     assert!(ret.contains("Test4!"));
 }
-
 
 #[test]
 fn test_label_in_module() {
