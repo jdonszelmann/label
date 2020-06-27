@@ -11,7 +11,7 @@
 
 ```rust
 
-create_label!(fn test() -> (););
+create_label!(fn test() -> ());
 
 #[test::label]
 fn my_fn() {

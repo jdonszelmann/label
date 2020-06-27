@@ -168,7 +168,7 @@ pub fn __label(_attr: TokenStream, item: TokenStream) -> TokenStream {
         #[allow(non_snake_case)]
         mod #varname {
             use label::ctor;
-            use super::#function_name;
+            use super::*;
 
             #[ctor]
             fn create () {
@@ -198,15 +198,29 @@ impl Parse for Signatures {
 struct Signature {
     name: syn::Ident,
     params: syn::punctuated::Punctuated<syn::BareFnArg, syn::Token![,]>,
+    generics: syn::Generics,
     returntype: syn::ReturnType,
 }
 
 impl Parse for Signature {
     fn parse(input: ParseStream) -> Result<Self> {
-        let _ = input.parse::<syn::Token![pub]>();
+        let _ = input.parse::<syn::Visibility>();
         input.parse::<syn::Token![fn]>()?;
 
         let name = input.parse()?;
+
+        let before = input.fork();
+
+        let generics: syn::Generics = input.parse()?;
+
+        if generics.type_params().next().is_some() {
+            return Err(
+                before.error("Labels can not have generic type parameters (only lifetimes).")
+            );
+        }
+        if generics.const_params().next().is_some() {
+            return Err(before.error("Labels can not have const parameters (only lifetimes)."));
+        }
 
         let content;
         syn::parenthesized!(
@@ -220,6 +234,7 @@ impl Parse for Signature {
         Ok(Signature {
             name,
             params,
+            generics,
             returntype,
         })
     }
@@ -257,7 +272,7 @@ impl Parse for Signature {
 ///
 /// It is not supported to have two labels in scope with the same name, just like two structs in the same scope with the same name won't work either.
 ///
-///
+///1
 /// After a label is created, it is possible to iterate over all functions annotated with this label, using the iter function:
 ///
 /// ```
@@ -289,17 +304,22 @@ pub fn create_label(signatures: TokenStream) -> TokenStream {
         .map(|signature| {
             let Signature {
                 name,
+                generics,
                 params,
                 returntype,
             } = signature;
 
+            let lifetimes = generics.lifetimes();
+
             let signature = quote! {
-                &'static (dyn Fn( #params ) #returntype + 'static)
+                &'static (dyn for<#(#lifetimes),*> Fn ( #params ) #returntype + 'static)
             };
 
             quote! {
                 #[allow(non_snake_case)]
                 pub mod #name {
+                    use super::*;
+
                     pub use std::collections::HashMap;
                     pub use label::__label as label;
 
