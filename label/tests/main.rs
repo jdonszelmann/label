@@ -1,4 +1,5 @@
 use label::create_label;
+use std::any::Any;
 use std::collections::HashSet;
 
 // TODO: allow for creating multiple label in one create_annotation! macro.
@@ -121,5 +122,20 @@ fn fn_test_with_lifetimes<'a, 'b>(val: Test<'a, 'b>) -> &'a usize {
 fn test_with_generics() {
     for i in with_lifetime::iter() {
         assert_eq!(i(Test { a: &10, _b: &15 }), &10);
+    }
+}
+
+#[test]
+fn test_traits() {
+    fn implements<T: Send + Sync + Any>(_value: T) {}
+
+    for i in with_lifetime::iter() {
+        implements(i);
+    }
+    for i in test::iter() {
+        implements(i);
+    }
+    for i in test2::iter() {
+        implements(i);
     }
 }
