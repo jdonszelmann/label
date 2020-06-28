@@ -10,11 +10,10 @@
 extern crate proc_macro;
 
 use proc_macro::{Span, TokenStream};
-use quote::{format_ident, quote};
+use quote::quote;
 use syn::parse::{Parse, ParseStream, Result};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use uuid::Uuid;
 
 struct ParsableAttribute {
     pub attributes: Vec<syn::Attribute>,
@@ -28,63 +27,17 @@ impl Parse for ParsableAttribute {
     }
 }
 
-fn simplify_path(path: syn::Path) -> syn::Path {
-    let mut res = match path {
-        syn::Path {
-            leading_colon: leading_colon @ Some(_),
-            segments,
-        } => syn::Path {
-            leading_colon,
-            segments,
-        },
-        syn::Path {
-            leading_colon: None,
-            mut segments,
-        } => match &segments[0] {
-            syn::PathSegment {
-                ident,
-                arguments: _,
-            } if &*ident.to_string() == "crate" => syn::Path {
-                leading_colon: None,
-                segments,
-            },
-            syn::PathSegment {
-                ident,
-                arguments: _,
-            } if &*ident.to_string() == "self" => syn::Path {
-                leading_colon: None,
-                segments,
-            },
-            syn::PathSegment {
-                ident,
-                arguments: _,
-            } => {
-                let span = ident.span();
-                segments.insert(
-                    0,
-                    syn::PathSegment {
-                        ident: syn::Ident::new("super", span),
-                        arguments: syn::PathArguments::None,
-                    },
-                );
-                syn::Path {
-                    leading_colon: None,
-                    segments,
-                }
-            }
-        },
-    };
-
+fn simplify_path(mut path: syn::Path) -> syn::Path {
     // replace ::annotate with ::add in the path.
     // It would be cleaner to remove ::annotate entirely, but couldn't find
     // a way to do that. .pop() retains the ::.
-    if let Some(i) = res.segments.last_mut() {
+    if let Some(i) = path.segments.last_mut() {
         assert_eq!(i.ident.to_string(), "label");
         let new_ident = syn::Ident::new("add", i.span());
         i.ident = new_ident;
     }
 
-    res
+    path
 }
 
 #[proc_macro_attribute]
@@ -149,9 +102,6 @@ pub fn __label(_attr: TokenStream, item: TokenStream) -> TokenStream {
         unreachable!()
     };
 
-    let annotation_id = Uuid::new_v4().as_u128();
-    let varname = format_ident!("__ANNOTATION_{}_{}", function_name, annotation_id);
-
     let callpath = simplify_path(path);
     let function_name_str = format!("{}", function_name);
 
@@ -159,9 +109,10 @@ pub fn __label(_attr: TokenStream, item: TokenStream) -> TokenStream {
         #func
 
         #[allow(non_snake_case)]
-        mod #varname {
+        // This uses: https://github.com/rust-lang/rust/issues/54912 to make anonymous modules.
+        // Anonymous modules use the parent scope meaning no more imports of `super::*` are needed
+        const _: () = {
             use label::ctor;
-            use super::*;
 
             #[ctor]
             fn create () {
@@ -170,7 +121,7 @@ pub fn __label(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
                 #(#other_annotations ::__add_label(#function_name_str, &#function_name);)*
             }
-        }
+        };
     };
 
     result.into()
