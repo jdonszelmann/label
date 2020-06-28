@@ -328,7 +328,7 @@ impl Parse for Definition {
 /// The annotation has to end with `::label`, or otherwise it will not compile.
 ///
 ///
-/// It is possible to create multipe labels in one invocation of the `create_label` macro. The syntax for this is as follows:
+/// It is possible to create multipe labels in one invocation of the `create_label!()` macro. The syntax for this is as follows:
 /// ```
 /// create_label!(
 ///     fn test() -> ();
@@ -364,6 +364,27 @@ impl Parse for Definition {
 /// }
 ///
 /// ```
+///
+/// Labels can also be given to `static` or `const` variables. Iterating over such labeled variables
+/// returns an `&'static` reference to the variable. You can define variable labels with
+/// `create_label!()`. It does not matter if you use `const` or `static`, they are handled the same.
+///  `static mut` is supported, though iterating over labels will *never* allow you to mutate these
+///  variables. `static mut` in `create_label!()` does nothing. If a `static mut` is locally updated,
+///  and the label is iterated over, the changed value is reflected.
+///
+/// ```
+/// create_label!(
+///     const name: usize;
+///     static other_name: usize;
+/// );
+/// ```
+///
+/// ```
+/// for i in name::iter() {
+///     println!("value: {}", *i);
+/// }
+/// ```
+///
 ///
 pub fn create_label(signatures: TokenStream) -> TokenStream {
     let labels = syn::parse_macro_input!(signatures as Definitions)
