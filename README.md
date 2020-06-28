@@ -29,6 +29,9 @@ fn main() {
 
 ```
 
+Label also supports labels on `static` and `const` variables, and iterating over the names of labeled items.
+For more information about this, visit the [docs](https://docs.rs/label)
+
 ## Contributing
 
 Any contributions are welcome. Just make a pull request or issue and I will try to respond as soon as possible.
