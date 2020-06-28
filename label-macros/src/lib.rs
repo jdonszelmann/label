@@ -166,9 +166,9 @@ pub fn __label(_attr: TokenStream, item: TokenStream) -> TokenStream {
             #[ctor]
             fn create () {
                 // register for all label it should be registered for
-                #callpath::__add_label(#function_name_str, &#function_name);
+                #callpath::__add_label(#function_name_str, #function_name);
 
-                #(#other_annotations ::__add_label(#function_name_str, &#function_name);)*
+                #(#other_annotations ::__add_label(#function_name_str, #function_name);)*
             }
         }
     };
@@ -305,7 +305,7 @@ pub fn create_label(signatures: TokenStream) -> TokenStream {
             let lifetimes = generics.lifetimes();
 
             let signature = quote! {
-                &'static (dyn for<#(#lifetimes),*> Fn ( #params ) #returntype + 'static)
+                for <#(#lifetimes),*> fn(#params) #returntype
             };
 
             quote! {
