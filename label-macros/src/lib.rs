@@ -11,11 +11,11 @@ extern crate proc_macro;
 
 use proc_macro::{Span, TokenStream};
 use quote::quote;
+use syn::export::ToTokens;
+use syn::parse::discouraged::Speculative;
 use syn::parse::{Parse, ParseStream, Result};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::export::ToTokens;
-use syn::parse::discouraged::Speculative;
 
 struct ParsableAttribute {
     pub attributes: Vec<syn::Attribute>,
@@ -57,7 +57,7 @@ impl Item {
         }
     }
 
-    pub fn attrs(&self) -> Vec<syn::Attribute>{
+    pub fn attrs(&self) -> Vec<syn::Attribute> {
         match self {
             Item::Func(i) => i.attrs.clone(),
             Item::Static(i) => i.attrs.clone(),
@@ -65,7 +65,7 @@ impl Item {
         }
     }
 
-    pub fn set_attrs(&mut self, attrs: Vec<syn::Attribute>){
+    pub fn set_attrs(&mut self, attrs: Vec<syn::Attribute>) {
         match self {
             Item::Func(i) => i.attrs = attrs,
             Item::Static(i) => i.attrs = attrs,
@@ -86,24 +86,22 @@ impl ToTokens for Item {
 
 impl Parse for Item {
     fn parse(input: ParseStream) -> Result<Self> {
-
         let tokens = input.fork();
         if let Ok(i) = tokens.parse() {
             input.advance_to(&tokens);
-            return Ok(Item::Func(i))
+            return Ok(Item::Func(i));
         }
 
         let tokens = input.fork();
         if let Ok(i) = tokens.parse() {
             input.advance_to(&tokens);
-            return Ok(Item::Static(i))
+            return Ok(Item::Static(i));
         }
-
 
         let tokens = input.fork();
         if let Ok(i) = tokens.parse() {
             input.advance_to(&tokens);
-            return Ok(Item::Const(i))
+            return Ok(Item::Const(i));
         }
 
         Err(input.error("Expected either function definition, static variable or const variable."))
@@ -212,7 +210,6 @@ pub fn __label(_attr: TokenStream, item: TokenStream) -> TokenStream {
         };
     };
 
-
     result.into()
 }
 
@@ -254,14 +251,16 @@ impl Parse for Definition {
             let generics: syn::Generics = input.parse()?;
 
             if generics.type_params().next().is_some() {
-                return Err(before.error("Labels can not have generic type parameters (only lifetimes)."));
+                return Err(
+                    before.error("Labels can not have generic type parameters (only lifetimes).")
+                );
             }
             if generics.const_params().next().is_some() {
-                return Err(before.error("Labels can not have const parameters (only lifetimes)."))
+                return Err(before.error("Labels can not have const parameters (only lifetimes)."));
             }
 
             let content;
-                syn::parenthesized!(
+            syn::parenthesized!(
                content in input
             );
 
@@ -285,10 +284,7 @@ impl Parse for Definition {
 
             let var_type: syn::Type = input.parse()?;
 
-            Ok(Definition::Static {
-                name,
-                var_type,
-            })
+            Ok(Definition::Static { name, var_type })
         } else if input.peek(syn::Token![const]) {
             input.parse::<syn::Token![const]>()?;
 
@@ -298,12 +294,10 @@ impl Parse for Definition {
 
             let var_type: syn::Type = input.parse()?;
 
-            Ok(Definition::Static {
-                name,
-                var_type,
-            })
+            Ok(Definition::Static { name, var_type })
         } else {
-            Err(input.error("Expected either function definition, static variable or const variable."))
+            Err(input
+                .error("Expected either function definition, static variable or const variable."))
         }
     }
 }
@@ -391,7 +385,6 @@ pub fn create_label(signatures: TokenStream) -> TokenStream {
         .signatures
         .iter()
         .map(|definition| {
-
             let (signature, name) = match definition {
                 Definition::Function {
                     name,
@@ -401,15 +394,19 @@ pub fn create_label(signatures: TokenStream) -> TokenStream {
                 } => {
                     let lifetimes = generics.lifetimes();
 
-                    (quote! {
-                        for <#(#lifetimes),*> fn(#params) #returntype
-                    }, name)
+                    (
+                        quote! {
+                            for <#(#lifetimes),*> fn(#params) #returntype
+                        },
+                        name,
+                    )
                 }
-                Definition::Static { name, var_type } => {
-                    (quote! {
+                Definition::Static { name, var_type } => (
+                    quote! {
                         &'static #var_type
-                    }, name)
-                }
+                    },
+                    name,
+                ),
             };
 
             quote! {
