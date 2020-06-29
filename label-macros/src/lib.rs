@@ -11,6 +11,8 @@ extern crate proc_macro;
 
 use proc_macro::{Span, TokenStream};
 use quote::quote;
+use syn::export::ToTokens;
+use syn::parse::discouraged::Speculative;
 use syn::parse::{Parse, ParseStream, Result};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
@@ -40,19 +42,83 @@ fn simplify_path(mut path: syn::Path) -> syn::Path {
     path
 }
 
+enum Item {
+    Func(syn::ItemFn),
+    Static(syn::ItemStatic),
+    Const(syn::ItemConst),
+}
+
+impl Item {
+    pub fn name(&self) -> &syn::Ident {
+        match self {
+            Item::Func(i) => &i.sig.ident,
+            Item::Static(i) => &i.ident,
+            Item::Const(i) => &i.ident,
+        }
+    }
+
+    pub fn attrs(&self) -> Vec<syn::Attribute> {
+        match self {
+            Item::Func(i) => i.attrs.clone(),
+            Item::Static(i) => i.attrs.clone(),
+            Item::Const(i) => i.attrs.clone(),
+        }
+    }
+
+    pub fn set_attrs(&mut self, attrs: Vec<syn::Attribute>) {
+        match self {
+            Item::Func(i) => i.attrs = attrs,
+            Item::Static(i) => i.attrs = attrs,
+            Item::Const(i) => i.attrs = attrs,
+        }
+    }
+}
+
+impl ToTokens for Item {
+    fn to_tokens(&self, tokens: &mut syn::export::TokenStream2) {
+        match self {
+            Item::Func(i) => i.to_tokens(tokens),
+            Item::Static(i) => i.to_tokens(tokens),
+            Item::Const(i) => i.to_tokens(tokens),
+        }
+    }
+}
+
+impl Parse for Item {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let tokens = input.fork();
+        if let Ok(i) = tokens.parse() {
+            input.advance_to(&tokens);
+            return Ok(Item::Func(i));
+        }
+
+        let tokens = input.fork();
+        if let Ok(i) = tokens.parse() {
+            input.advance_to(&tokens);
+            return Ok(Item::Static(i));
+        }
+
+        let tokens = input.fork();
+        if let Ok(i) = tokens.parse() {
+            input.advance_to(&tokens);
+            return Ok(Item::Const(i));
+        }
+
+        Err(input.error("Expected either function definition, static variable or const variable."))
+    }
+}
+
 #[proc_macro_attribute]
 #[doc(hidden)]
 /// DO NOT USE DIRECTLY! USE THROUGH CREATE_ANNOTATION
 pub fn __label(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    let mut func = syn::parse_macro_input!(item as syn::ItemFn);
-
-    let function_name = &func.sig.ident;
+    let mut item = syn::parse_macro_input!(item as Item);
 
     // other annotation attributes
     let mut other_annotations = Vec::new();
     // any other attribute present
     let mut other_attrs = Vec::new();
-    for i in func.attrs {
+    for i in item.attrs() {
         if let Some(ref lst) = i.path.segments.last() {
             if &*lst.ident.to_string() == "label" {
                 other_annotations.push(simplify_path(i.path));
@@ -64,7 +130,9 @@ pub fn __label(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     // remove all label from the function's attributes
     // but keep other attributes
-    func.attrs = other_attrs;
+    item.set_attrs(other_attrs);
+
+    let item_name = item.name();
 
     // for the following, the feature
     // #![feature(proc_macro_quote)]
@@ -103,10 +171,24 @@ pub fn __label(_attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     let callpath = simplify_path(path);
-    let function_name_str = format!("{}", function_name);
+    let item_name_str = format!("{}", item_name);
+
+    let item_quote = match &item {
+        Item::Func(_) => quote! {
+            #item_name
+        },
+        Item::Static(_) => {
+            quote! {
+                &#item_name
+            }
+        }
+        Item::Const(_) => quote! {
+            &#item_name
+        },
+    };
 
     let result = quote! {
-        #func
+        #item
 
         #[allow(non_snake_case)]
         // This uses: https://github.com/rust-lang/rust/issues/54912 to make anonymous modules.
@@ -116,10 +198,14 @@ pub fn __label(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
             #[ctor]
             fn create () {
-                // register for all label it should be registered for
-                #callpath::__add_label(#function_name_str, #function_name);
+                // Safety: This is unsafe because sometimes I use mut statics here. However, I'm only giving out pointers
+                // to them for which I make sure you can't use them without an unsafe block where they are used.
+                unsafe {
+                    // register for all label it should be registered for
+                    #callpath::__add_label(#item_name_str, #item_quote);
 
-                #(#other_annotations ::__add_label(#function_name_str, #function_name);)*
+                    #(#other_annotations ::__add_label(#item_name_str, #item_quote);)*
+                }
             }
         };
     };
@@ -127,60 +213,92 @@ pub fn __label(_attr: TokenStream, item: TokenStream) -> TokenStream {
     result.into()
 }
 
-struct Signatures {
-    signatures: Punctuated<Signature, syn::Token![;]>,
+struct Definitions {
+    signatures: Punctuated<Definition, syn::Token![;]>,
 }
 
-impl Parse for Signatures {
+impl Parse for Definitions {
     fn parse(input: ParseStream) -> Result<Self> {
         Ok(Self {
-            signatures: input.parse_terminated::<_, syn::Token![;]>(Signature::parse)?,
+            signatures: input.parse_terminated::<_, syn::Token![;]>(Definition::parse)?,
         })
     }
 }
 
-struct Signature {
-    name: syn::Ident,
-    params: syn::punctuated::Punctuated<syn::BareFnArg, syn::Token![,]>,
-    generics: syn::Generics,
-    returntype: syn::ReturnType,
+enum Definition {
+    Function {
+        name: syn::Ident,
+        params: syn::punctuated::Punctuated<syn::BareFnArg, syn::Token![,]>,
+        generics: syn::Generics,
+        returntype: syn::ReturnType,
+    },
+    Static {
+        name: syn::Ident,
+        var_type: syn::Type,
+    },
 }
 
-impl Parse for Signature {
+impl Parse for Definition {
     fn parse(input: ParseStream) -> Result<Self> {
         let _ = input.parse::<syn::Visibility>();
-        input.parse::<syn::Token![fn]>()?;
 
-        let name = input.parse()?;
+        if input.peek(syn::Token![fn]) {
+            input.parse::<syn::Token![fn]>()?;
 
-        let before = input.fork();
+            let name = input.parse::<syn::Ident>()?;
+            let before = input.fork();
 
-        let generics: syn::Generics = input.parse()?;
+            let generics: syn::Generics = input.parse()?;
 
-        if generics.type_params().next().is_some() {
-            return Err(
-                before.error("Labels can not have generic type parameters (only lifetimes).")
+            if generics.type_params().next().is_some() {
+                return Err(
+                    before.error("Labels can not have generic type parameters (only lifetimes).")
+                );
+            }
+            if generics.const_params().next().is_some() {
+                return Err(before.error("Labels can not have const parameters (only lifetimes)."));
+            }
+
+            let content;
+            syn::parenthesized!(
+               content in input
             );
+
+            let params = content.parse_terminated::<_, syn::Token![,]>(syn::BareFnArg::parse)?;
+
+            let returntype = input.parse::<syn::ReturnType>()?;
+
+            Ok(Definition::Function {
+                name,
+                params,
+                generics,
+                returntype,
+            })
+        } else if input.peek(syn::Token![static]) {
+            input.parse::<syn::Token![static]>()?;
+
+            let _ = input.parse::<syn::Token![mut]>();
+            let name = input.parse::<syn::Ident>()?;
+
+            input.parse::<syn::Token![:]>()?;
+
+            let var_type: syn::Type = input.parse()?;
+
+            Ok(Definition::Static { name, var_type })
+        } else if input.peek(syn::Token![const]) {
+            input.parse::<syn::Token![const]>()?;
+
+            let name = input.parse::<syn::Ident>()?;
+
+            input.parse::<syn::Token![:]>()?;
+
+            let var_type: syn::Type = input.parse()?;
+
+            Ok(Definition::Static { name, var_type })
+        } else {
+            Err(input
+                .error("Expected either function definition, static variable or const variable."))
         }
-        if generics.const_params().next().is_some() {
-            return Err(before.error("Labels can not have const parameters (only lifetimes)."));
-        }
-
-        let content;
-        syn::parenthesized!(
-           content in input
-        );
-
-        let params = content.parse_terminated::<_, syn::Token![,]>(syn::BareFnArg::parse)?;
-
-        let returntype = input.parse::<syn::ReturnType>()?;
-
-        Ok(Signature {
-            name,
-            params,
-            generics,
-            returntype,
-        })
     }
 }
 
@@ -204,7 +322,7 @@ impl Parse for Signature {
 /// The annotation has to end with `::label`, or otherwise it will not compile.
 ///
 ///
-/// It is possible to create multipe labels in one invocation of the `create_label` macro. The syntax for this is as follows:
+/// It is possible to create multipe labels in one invocation of the `create_label!()` macro. The syntax for this is as follows:
 /// ```
 /// create_label!(
 ///     fn test() -> ();
@@ -241,22 +359,54 @@ impl Parse for Signature {
 ///
 /// ```
 ///
+/// Labels can also be given to `static` or `const` variables. Iterating over such labeled variables
+/// returns an `&'static` reference to the variable. You can define variable labels with
+/// `create_label!()`. It does not matter if you use `const` or `static`, they are handled the same.
+///  `static mut` is supported, though iterating over labels will *never* allow you to mutate these
+///  variables. `static mut` in `create_label!()` does nothing. If a `static mut` is locally updated,
+///  and the label is iterated over, the changed value is reflected.
+///
+/// ```
+/// create_label!(
+///     const name: usize;
+///     static other_name: usize;
+/// );
+/// ```
+///
+/// ```
+/// for i in name::iter() {
+///     println!("value: {}", *i);
+/// }
+/// ```
+///
+///
 pub fn create_label(signatures: TokenStream) -> TokenStream {
-    let labels = syn::parse_macro_input!(signatures as Signatures)
+    let labels = syn::parse_macro_input!(signatures as Definitions)
         .signatures
         .iter()
-        .map(|signature| {
-            let Signature {
-                name,
-                generics,
-                params,
-                returntype,
-            } = signature;
+        .map(|definition| {
+            let (signature, name) = match definition {
+                Definition::Function {
+                    name,
+                    generics,
+                    params,
+                    returntype,
+                } => {
+                    let lifetimes = generics.lifetimes();
 
-            let lifetimes = generics.lifetimes();
-
-            let signature = quote! {
-                for <#(#lifetimes),*> fn(#params) #returntype
+                    (
+                        quote! {
+                            for <#(#lifetimes),*> fn(#params) #returntype
+                        },
+                        name,
+                    )
+                }
+                Definition::Static { name, var_type } => (
+                    quote! {
+                        &'static #var_type
+                    },
+                    name,
+                ),
             };
 
             quote! {
@@ -267,11 +417,12 @@ pub fn create_label(signatures: TokenStream) -> TokenStream {
                     pub use std::collections::HashMap;
                     pub use label::__label as label;
 
-                    static mut FUNCTIONS: Option<Vec<(&'static str, #signature)>> = None;
+                    pub static mut FUNCTIONS: Option<Vec<(&'static str, #signature)>> = None;
 
                     pub fn iter() -> impl Iterator<Item = #signature> {
                         // Safety: after FUNCTIONS is populated (before main is called),
                         // FUNCTIONS remains unchanged for the entire rest of the program.
+
                         unsafe{
                             FUNCTIONS.iter().flat_map(|i| i.iter().map(|i| &i.1)).cloned()
                         }
@@ -307,5 +458,6 @@ pub fn create_label(signatures: TokenStream) -> TokenStream {
     let result = quote! {
         #(#labels)*
     };
+
     result.into()
 }
