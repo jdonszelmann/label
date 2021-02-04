@@ -11,7 +11,7 @@ extern crate proc_macro;
 
 use proc_macro::{Span, TokenStream};
 use quote::quote;
-use syn::export::ToTokens;
+use quote::ToTokens;
 use syn::parse::discouraged::Speculative;
 use syn::parse::{Parse, ParseStream, Result};
 use syn::punctuated::Punctuated;
@@ -75,7 +75,7 @@ impl Item {
 }
 
 impl ToTokens for Item {
-    fn to_tokens(&self, tokens: &mut syn::export::TokenStream2) {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         match self {
             Item::Func(i) => i.to_tokens(tokens),
             Item::Static(i) => i.to_tokens(tokens),
